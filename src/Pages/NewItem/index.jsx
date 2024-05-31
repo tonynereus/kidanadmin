@@ -11,13 +11,12 @@ const AddProduct = () => {
         price: "",
         highlight: [],
         composition: [],
+        photo: null,
         morePicture: []
     });
 
     const location = useLocation();
-    //const history = useHistory();
-
-    const { subCategory, subCatId, token, user } = location.state || {};
+    const { subCatId, token } = location.state || {};
 
     const handleChange = (key, value) => {
         setFormData({ ...formData, [key]: value });
@@ -27,6 +26,34 @@ const AddProduct = () => {
         const newComposition = [...formData.composition];
         newComposition[index] = value;
         setFormData({ ...formData, composition: newComposition });
+    };
+
+    const handleHighlightChange = (index, value) => {
+        const newHighlight = [...formData.highlight];
+        newHighlight[index] = value;
+        setFormData({ ...formData, highlight: newHighlight });
+    };
+
+    const handleAddHighlight = () => {
+        setFormData({ ...formData, highlight: [...formData.highlight, ""] });
+    };
+
+    const handleAddComposition = () => {
+        setFormData({ ...formData, composition: [...formData.composition, ""] });
+    };
+
+    const handleRemoveHighlight = (index) => {
+        const newHighlight = formData.highlight.filter((_, i) => i !== index);
+        setFormData({ ...formData, highlight: newHighlight });
+    };
+
+    const handleRemoveComposition = (index) => {
+        const newComposition = formData.composition.filter((_, i) => i !== index);
+        setFormData({ ...formData, composition: newComposition });
+    };
+
+    const handlePhotoChange = (file) => {
+        setFormData({ ...formData, photo: file });
     };
 
     const handleMorePictureChange = (index, file) => {
@@ -39,15 +66,15 @@ const AddProduct = () => {
         try {
             const formDataToSend = new FormData();
             formDataToSend.append("sub_cat_id", subCatId);
-            formDataToSend.append("created_by", user.id);
             formDataToSend.append("title", formData.title);
             formDataToSend.append("description", formData.description);
             formDataToSend.append("price", formData.price);
+            formDataToSend.append("photo", formData.photo);
             formData.highlight.forEach((highlight) => formDataToSend.append("highlight", highlight));
             formData.composition.forEach((composition) => formDataToSend.append("composition", composition));
             formData.morePicture.forEach((pic) => formDataToSend.append("morePicture", pic));
 
-            const response = await fetch(apis.base+"uploadProduct", {
+            const response = await fetch(apis.base + "uploadProduct", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -55,16 +82,17 @@ const AddProduct = () => {
                 body: formDataToSend
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-                throw new Error("Failed to upload product");
+                throw new Error(data.message || "Failed to upload product");
             }
 
-            const data = await response.json();
             message.success("Product uploaded successfully");
             // Redirect or do something else upon successful upload
         } catch (error) {
             console.error("Error uploading product:", error);
-            message.error("Failed to upload product. Please try again later.");
+            message.error(error.message || "Failed to upload product. Please try again later.");
         }
     };
 
@@ -76,11 +104,47 @@ const AddProduct = () => {
                 <Input placeholder="Price" type="number" value={formData.price} onChange={(e) => handleChange("price", e.target.value)} />
                 <Input.TextArea placeholder="Description" value={formData.description} onChange={(e) => handleChange("description", e.target.value)} />
                 <div>
+                    <Typography.Text>Photo:</Typography.Text>
+                    <Upload
+                        beforeUpload={(file) => {
+                            handlePhotoChange(file);
+                            return false; // Prevent automatic upload
+                        }}
+                        showUploadList={false}
+                    >
+                        <Button icon={<UploadOutlined />}>Select Main Photo</Button>
+                    </Upload>
+                    {formData.photo && <span>{formData.photo.name}</span>}
+                </div>
+                <div>
+                    <Typography.Text>Highlights:</Typography.Text>
+                    {formData.highlight.map((highlight, index) => (
+                        <div key={index} style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
+                            <Input
+                                style={{ flex: 1, marginRight: "8px" }}
+                                placeholder={`Highlight ${index + 1}`}
+                                value={highlight}
+                                onChange={(e) => handleHighlightChange(index, e.target.value)}
+                            />
+                            <Button onClick={() => handleRemoveHighlight(index)} type="danger">Remove</Button>
+                        </div>
+                    ))}
+                    <Button onClick={handleAddHighlight}>Add Highlight Field</Button>
+                </div>
+                <div>
                     <Typography.Text>Composition:</Typography.Text>
                     {formData.composition.map((comp, index) => (
-                        <Input className="mb-2" key={index} placeholder={`Composition ${index + 1}`} value={comp} onChange={(e) => handleCompositionChange(index, e.target.value)} />
+                        <div key={index} style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
+                            <Input
+                                style={{ flex: 1, marginRight: "8px" }}
+                                placeholder={`Composition ${index + 1}`}
+                                value={comp}
+                                onChange={(e) => handleCompositionChange(index, e.target.value)}
+                            />
+                            <Button onClick={() => handleRemoveComposition(index)} type="danger">Remove</Button>
+                        </div>
                     ))}
-                    <Button onClick={() => setFormData({ ...formData, composition: [...formData.composition, ""] })}>Add Composition Field</Button>
+                    <Button onClick={handleAddComposition}>Add Composition Field</Button>
                 </div>
                 <div>
                     <Typography.Text>More Pictures:</Typography.Text>
